@@ -66,7 +66,7 @@ export function ProcessSuccessAnimation({
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{ scale: 0.9, opacity: 0, y: 15 }}
       transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-      className={`relative overflow-hidden rounded-3xl bg-white border border-emerald-200/80 shadow-2xl p-6 sm:p-8 text-center max-w-lg w-full mx-auto ${
+      className={`relative overflow-hidden rounded-3xl bg-white border border-emerald-200/80 shadow-2xl p-6 sm:p-8 text-center max-w-xl sm:max-w-2xl w-full mx-auto ${
         isInline ? 'my-4' : ''
       }`}
     >
@@ -188,14 +188,14 @@ export function ProcessSuccessAnimation({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35 }}
-        className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2"
+        className="flex flex-wrap items-center justify-center gap-3 pt-3 w-full"
       >
         {showPrint && (
           <Button
             variant="outline"
             size="lg"
             onClick={() => window.print()}
-            className="w-full sm:w-auto h-12 text-sm font-semibold rounded-xl border-neutral-300 gap-2"
+            className="h-12 px-5 text-sm font-semibold rounded-xl border-neutral-300 gap-2 hover:bg-neutral-50 shadow-xs"
           >
             <Printer className="h-4 w-4 text-neutral-600" />
             Print Slip
@@ -207,17 +207,17 @@ export function ProcessSuccessAnimation({
             variant="secondary"
             size="lg"
             onClick={onSecondaryAction}
-            className="w-full sm:w-auto h-12 text-sm font-semibold rounded-xl"
+            className="h-12 px-5 text-sm font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-xs"
           >
             {secondaryActionLabel}
           </Button>
         )}
 
         {primaryActionHref ? (
-          <Link href={primaryActionHref} className="w-full sm:w-auto">
+          <Link href={primaryActionHref} className="inline-block">
             <Button
               size="lg"
-              className="w-full h-12 text-sm font-semibold rounded-xl bg-primary-600 hover:bg-primary-700 text-white gap-2 shadow-lg shadow-primary-500/20"
+              className="h-12 px-6 text-sm font-semibold rounded-xl bg-sky-600 hover:bg-sky-700 text-white gap-2 shadow-lg shadow-sky-500/20"
             >
               {primaryActionLabel || 'Continue'}
               <ArrowRight className="h-4 w-4" />
@@ -227,7 +227,7 @@ export function ProcessSuccessAnimation({
           <Button
             size="lg"
             onClick={onPrimaryAction}
-            className="w-full sm:w-auto h-12 text-sm font-semibold rounded-xl bg-primary-600 hover:bg-primary-700 text-white gap-2 shadow-lg shadow-primary-500/20"
+            className="h-12 px-6 text-sm font-semibold rounded-xl bg-sky-600 hover:bg-sky-700 text-white gap-2 shadow-lg shadow-sky-500/20"
           >
             {primaryActionLabel}
             <ArrowRight className="h-4 w-4" />
