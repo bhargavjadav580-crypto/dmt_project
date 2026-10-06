@@ -1,0 +1,521 @@
+// Hospital Patient Flow Management System
+// Prisma Schema — SQLite (portable to PostgreSQL)
+// Enums stored as String with Zod validation (SQLite limitation)
+// Money stored as integer paise, never floats
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USER & AUTH ───────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         String    // RECEPTIONIST, NURSE, DOCTOR, LAB_TECH, PHARMACIST, ADMISSION_STAFF, BILLING_STAFF, ADMIN
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  isActive     Boolean   @default(true)
+  language     String    @default("en")
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  // Relations
+  registeredVisits  Visit[]           @relation("RegisteredBy")
+  queueCalls        QueueEntry[]      @relation("CalledBy")
+  vitals            VitalSigns[]      @relation("RecordedBy")
+  consultations     Consultation[]    @relation("DoctorConsultation")
+  addenda           ConsultationAddendum[] @relation("AddendumBy")
+  labOrdersCreated  LabOrder[]        @relation("OrderedBy")
+  labCollected      LabOrder[]        @relation("CollectedBy")
+  labResultEntered  LabOrder[]        @relation("ResultEnteredBy")
+  labReviewed       LabOrder[]        @relation("ReviewedBy")
+  prescriptions     Prescription[]    @relation("PrescribedBy")
+  referralsCreated  Referral[]        @relation("ReferralCreatedBy")
+  admissionRequests Admission[]       @relation("AdmissionRequestedBy")
+  paymentsReceived  Payment[]         @relation("ReceivedBy")
+  clinicalSignOffs  DischargeRecord[] @relation("ClinicalSignOffBy")
+  dischargeFinalizers DischargeRecord[] @relation("FinalizedBy")
+  followUpDoctor    DischargeRecord[] @relation("FollowUpDoctor")
+  flowEvents        FlowEvent[]       @relation("FlowEventActor")
+  auditLogs         AuditLog[]        @relation("AuditActor")
+  notifications     Notification[]    @relation("NotificationTarget")
+  appointments      Appointment[]     @relation("AppointmentDoctor")
+}
+
+// ─── DEPARTMENT ────────────────────────────────────────────────
+
+model Department {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  type        String  // OPD, EMERGENCY, LAB, PHARMACY, WARD, BILLING
+  tokenPrefix String  @default("A")
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users          User[]
+  visits         Visit[]
+  queueEntries   QueueEntry[]
+  tokenCounters  TokenCounter[]
+  referralsFrom  Referral[] @relation("ReferralFromDept")
+  referralsTo    Referral[] @relation("ReferralToDept")
+  appointments   Appointment[]
+  notifications  Notification[] @relation("NotificationDept")
+}
+
+// ─── PATIENT ───────────────────────────────────────────────────
+
+model Patient {
+  id                   String    @id @default(cuid())
+  uhid                 String    @unique
+  name                 String
+  ageYears             Int
+  dob                  DateTime?
+  gender               String    // MALE, FEMALE, OTHER
+  phone                String?
+  address              String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  allergies            String    @default("[]") // JSON array of strings
+  isUnidentified       Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+
+  visits       Visit[]
+  appointments Appointment[]
+}
+
+// ─── APPOINTMENT ───────────────────────────────────────────────
+
+model Appointment {
+  id           String   @id @default(cuid())
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id])
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  doctorId     String?
+  doctor       User?    @relation("AppointmentDoctor", fields: [doctorId], references: [id])
+  scheduledAt  DateTime
+  status       String   @default("BOOKED") // BOOKED, CHECKED_IN, CANCELLED, NO_SHOW
+  visitId      String?  @unique
+  visit        Visit?   @relation(fields: [visitId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── VISIT ─────────────────────────────────────────────────────
+
+model Visit {
+  id               String   @id @default(cuid())
+  visitNo          String   @unique
+  patientId        String
+  patient          Patient  @relation(fields: [patientId], references: [id])
+  departmentId     String
+  department       Department @relation(fields: [departmentId], references: [id])
+  type             String   // OPD, EMERGENCY, IPD, FOLLOW_UP
+  priority         String   @default("UNASSESSED") // UNASSESSED, NORMAL, URGENT, EMERGENCY
+  stage            String   @default("REGISTERED") // See workflow stages
+  status           String   @default("OPEN") // OPEN, COMPLETED, CANCELLED
+  tokenNumber      String
+  reasonForVisit   String?
+  registeredById   String
+  registeredBy     User     @relation("RegisteredBy", fields: [registeredById], references: [id])
+  needsDoctorReview Boolean @default(false)
+  version          Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  appointment     Appointment?
+  queueEntries    QueueEntry[]
+  vitals          VitalSigns[]
+  consultation    Consultation?
+  labOrders       LabOrder[]
+  prescriptions   Prescription[]
+  referrals       Referral[]
+  admission       Admission?
+  invoice         Invoice?
+  dischargeRecord DischargeRecord?
+  flowEvents      FlowEvent[]
+}
+
+// ─── TOKEN COUNTER ─────────────────────────────────────────────
+
+model TokenCounter {
+  id           String   @id @default(cuid())
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  date         String   // YYYY-MM-DD
+  lastSeq      Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([departmentId, date])
+}
+
+// ─── QUEUE ─────────────────────────────────────────────────────
+
+model QueueEntry {
+  id           String   @id @default(cuid())
+  visitId      String
+  visit        Visit    @relation(fields: [visitId], references: [id])
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  status       String   @default("WAITING") // WAITING, CALLED, IN_CONSULTATION, SKIPPED, COMPLETED
+  priority     String   @default("NORMAL") // UNASSESSED, NORMAL, URGENT, EMERGENCY
+  enteredAt    DateTime @default(now())
+  calledAt     DateTime?
+  calledById   String?
+  calledBy     User?    @relation("CalledBy", fields: [calledById], references: [id])
+  skipCount    Int      @default(0)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── VITAL SIGNS ───────────────────────────────────────────────
+
+model VitalSigns {
+  id           String   @id @default(cuid())
+  visitId      String
+  visit        Visit    @relation(fields: [visitId], references: [id])
+  recordedById String
+  recordedBy   User     @relation("RecordedBy", fields: [recordedById], references: [id])
+  bp           String?  // e.g. "120/80"
+  pulse        Int?
+  tempC        Float?
+  spo2         Int?
+  weightKg     Float?
+  heightCm     Float?
+  respiratoryRate Int?
+  bloodSugar   Float?
+  notes        String?
+  recordedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── CONSULTATION ──────────────────────────────────────────────
+
+model Consultation {
+  id         String   @id @default(cuid())
+  visitId    String   @unique
+  visit      Visit    @relation(fields: [visitId], references: [id])
+  doctorId   String
+  doctor     User     @relation("DoctorConsultation", fields: [doctorId], references: [id])
+  reason     String?
+  notes      String?
+  diagnosis  String?
+  icd10Code  String?
+  status     String   @default("DRAFT") // DRAFT, COMPLETED
+  startedAt  DateTime @default(now())
+  endedAt    DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  addenda    ConsultationAddendum[]
+}
+
+model ConsultationAddendum {
+  id             String       @id @default(cuid())
+  consultationId String
+  consultation   Consultation @relation(fields: [consultationId], references: [id])
+  addedById      String
+  addedBy        User         @relation("AddendumBy", fields: [addedById], references: [id])
+  notes          String
+  createdAt      DateTime     @default(now())
+}
+
+// ─── LAB ───────────────────────────────────────────────────────
+
+model LabTest {
+  id         String @id @default(cuid())
+  code       String @unique
+  name       String
+  category   String // LAB, RADIOLOGY
+  pricePaise Int
+  parameters String @default("[]") // JSON: [{name, unit, refLow, refHigh}]
+  isActive   Boolean @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  labOrders  LabOrder[]
+}
+
+model LabOrder {
+  id               String   @id @default(cuid())
+  visitId          String
+  visit            Visit    @relation(fields: [visitId], references: [id])
+  labTestId        String
+  labTest          LabTest  @relation(fields: [labTestId], references: [id])
+  orderedById      String
+  orderedBy        User     @relation("OrderedBy", fields: [orderedById], references: [id])
+  priority         String   @default("NORMAL") // NORMAL, URGENT, EMERGENCY
+  status           String   @default("ORDERED") // ORDERED, SAMPLE_COLLECTED, PROCESSING, RESULT_ENTERED, REVIEWED
+  collectedById    String?
+  collectedBy      User?    @relation("CollectedBy", fields: [collectedById], references: [id])
+  result           String?  // JSON results
+  resultEnteredById String?
+  resultEnteredBy  User?    @relation("ResultEnteredBy", fields: [resultEnteredById], references: [id])
+  reviewedById     String?
+  reviewedBy       User?    @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  orderedAt        DateTime @default(now())
+  collectedAt      DateTime?
+  processedAt      DateTime?
+  resultEnteredAt  DateTime?
+  reviewedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ─── PHARMACY ──────────────────────────────────────────────────
+
+model Medicine {
+  id           String @id @default(cuid())
+  name         String
+  strength     String?
+  form         String? // TABLET, CAPSULE, SYRUP, INJECTION, CREAM, DROPS, INHALER
+  stockQty     Int    @default(0)
+  reorderLevel Int    @default(10)
+  pricePaise   Int    @default(0)
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  prescriptionItems PrescriptionItem[]
+}
+
+model Prescription {
+  id             String   @id @default(cuid())
+  visitId        String
+  visit          Visit    @relation(fields: [visitId], references: [id])
+  prescribedById String
+  prescribedBy   User     @relation("PrescribedBy", fields: [prescribedById], references: [id])
+  status         String   @default("PENDING") // PENDING, PARTIAL, DISPENSED
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  items          PrescriptionItem[]
+}
+
+model PrescriptionItem {
+  id           String  @id @default(cuid())
+  prescriptionId String
+  prescription Prescription @relation(fields: [prescriptionId], references: [id])
+  medicineId   String?
+  medicine     Medicine? @relation(fields: [medicineId], references: [id])
+  medicineName String  // Free text allowed
+  dose         String
+  frequency    String
+  durationDays Int?
+  quantity     Int
+  dispensedQty Int     @default(0)
+  status       String  @default("PENDING") // PENDING, DISPENSED, OUT_OF_STOCK, SUBSTITUTE_NEEDED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── REFERRAL ──────────────────────────────────────────────────
+
+model Referral {
+  id          String   @id @default(cuid())
+  visitId     String
+  visit       Visit    @relation(fields: [visitId], references: [id])
+  fromDeptId  String
+  fromDept    Department @relation("ReferralFromDept", fields: [fromDeptId], references: [id])
+  toDeptId    String
+  toDept      Department @relation("ReferralToDept", fields: [toDeptId], references: [id])
+  reason      String
+  priority    String   @default("NORMAL")
+  status      String   @default("SENT") // SENT, ACCEPTED, COMPLETED
+  createdById String
+  createdBy   User     @relation("ReferralCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── WARD & BED ────────────────────────────────────────────────
+
+model Ward {
+  id             String @id @default(cuid())
+  name           String
+  type           String // GENERAL, ICU, PRIVATE, SEMI_PRIVATE
+  dailyTariffPaise Int @default(0)
+  isActive       Boolean @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  beds           Bed[]
+}
+
+model Bed {
+  id       String @id @default(cuid())
+  wardId   String
+  ward     Ward   @relation(fields: [wardId], references: [id])
+  number   String
+  status   String @default("AVAILABLE") // AVAILABLE, OCCUPIED, CLEANING, MAINTENANCE, RESERVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  admissions Admission[]
+}
+
+// ─── ADMISSION ─────────────────────────────────────────────────
+
+model Admission {
+  id             String   @id @default(cuid())
+  visitId        String   @unique
+  visit          Visit    @relation(fields: [visitId], references: [id])
+  requestedById  String
+  requestedBy    User     @relation("AdmissionRequestedBy", fields: [requestedById], references: [id])
+  reason         String?
+  priority       String   @default("NORMAL")
+  status         String   @default("REQUESTED") // REQUESTED, BED_ASSIGNED, ADMITTED, DISCHARGED
+  bedId          String?
+  bed            Bed?     @relation(fields: [bedId], references: [id])
+  admittedAt     DateTime?
+  dischargedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ─── BILLING ───────────────────────────────────────────────────
+
+model Invoice {
+  id         String  @id @default(cuid())
+  visitId    String  @unique
+  visit      Visit   @relation(fields: [visitId], references: [id])
+  status     String  @default("DRAFT") // DRAFT, PENDING, PARTIAL, PAID, WAIVED
+  subtotalPaise Int  @default(0)
+  taxPaise   Int     @default(0)
+  discountPaise Int  @default(0)
+  totalPaise Int     @default(0)
+  paidPaise  Int     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  items      InvoiceItem[]
+  payments   Payment[]
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+  category    String  // CONSULTATION, LAB, MEDICINE, BED, PROCEDURE, MANUAL
+  description String
+  quantity    Int     @default(1)
+  unitPricePaise Int
+  totalPaise  Int
+  taxRate     Float   @default(0) // percentage, configurable per category
+  taxPaise    Int     @default(0)
+  referenceId String? // Link to lab order, prescription, etc.
+  reason      String? // Required for manual items
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Payment {
+  id           String  @id @default(cuid())
+  invoiceId    String
+  invoice      Invoice @relation(fields: [invoiceId], references: [id])
+  method       String  // CASH, CARD, UPI, INSURANCE
+  amountPaise  Int
+  reference    String?
+  receivedById String
+  receivedBy   User    @relation("ReceivedBy", fields: [receivedById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── DISCHARGE ─────────────────────────────────────────────────
+
+model DischargeRecord {
+  id                   String   @id @default(cuid())
+  visitId              String   @unique
+  visit                Visit    @relation(fields: [visitId], references: [id])
+  summary              String?
+  followUpAt           DateTime?
+  followUpDoctorId     String?
+  followUpDoctor       User?    @relation("FollowUpDoctor", fields: [followUpDoctorId], references: [id])
+  clinicalSignOffById  String?
+  clinicalSignOffBy    User?    @relation("ClinicalSignOffBy", fields: [clinicalSignOffById], references: [id])
+  clinicalSignOffAt    DateTime?
+  finalizedById        String?
+  finalizedBy          User?    @relation("FinalizedBy", fields: [finalizedById], references: [id])
+  dischargedAt         DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// ─── FLOW EVENT (append-only) ──────────────────────────────────
+
+model FlowEvent {
+  id         String   @id @default(cuid())
+  visitId    String
+  visit      Visit    @relation(fields: [visitId], references: [id])
+  type       String   // STAGE_CHANGE, PRIORITY_CHANGE, QUEUE_ACTION, LAB_UPDATE, PHARMACY_UPDATE, BILLING_UPDATE, ADMISSION_UPDATE, DISCHARGE, NOTE
+  stage      String?
+  actorId    String
+  actor      User     @relation("FlowEventActor", fields: [actorId], references: [id])
+  actorName  String   // Snapshot
+  metadata   String   @default("{}") // JSON
+  createdAt  DateTime @default(now())
+}
+
+// ─── AUDIT LOG ─────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation("AuditActor", fields: [actorId], references: [id])
+  actorName  String
+  action     String   // VIEW, CREATE, UPDATE, DELETE, LOGIN, LOGOUT, BREAK_GLASS, PERMISSION_DENIED
+  entityType String
+  entityId   String
+  reason     String?
+  before     String?  // JSON
+  after      String?  // JSON
+  ip         String?
+  createdAt  DateTime @default(now())
+}
+
+// ─── NOTIFICATION ──────────────────────────────────────────────
+
+model Notification {
+  id               String   @id @default(cuid())
+  targetUserId     String?
+  targetUser       User?    @relation("NotificationTarget", fields: [targetUserId], references: [id])
+  targetRole       String?
+  targetDepartmentId String?
+  targetDepartment Department? @relation("NotificationDept", fields: [targetDepartmentId], references: [id])
+  type             String   // LAB_RESULT, PRESCRIPTION, ADMISSION, DISCHARGE, QUEUE, SYSTEM, EMERGENCY
+  priority         String   @default("NORMAL") // NORMAL, HIGH, URGENT
+  title            String
+  message          String
+  link             String?
+  readAt           DateTime?
+  createdAt        DateTime @default(now())
+}
+
+// ─── SETTINGS ──────────────────────────────────────────────────
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String // JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
