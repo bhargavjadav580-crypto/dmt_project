@@ -5,7 +5,7 @@ import { requirePermission } from '@/lib/auth-helpers';
 import { Capabilities } from '@/server/permissions';
 import * as visitService from '@/server/services/visit-service';
 import { logAudit } from '@/server/audit';
-import { AuditAction } from '@/lib/types';
+import { AuditAction, VisitStage } from '@/lib/types';
 
 export type ActionResult<T> = 
   | { ok: true; data: T }
@@ -114,5 +114,41 @@ export async function cancelVisit(visitId: string, reason: string): Promise<Acti
     return { ok: true, data: visit };
   } catch (error: any) {
     return { ok: false, error: { code: 'CANCEL_VISIT_FAILED', messageKey: error.message } };
+  }
+}
+
+export async function checkInPatient(visitId: string): Promise<ActionResult<any>> {
+  try {
+    const user = await requirePermission(Capabilities.MANAGE_QUEUE);
+    const visit = await visitService.getVisitById(visitId);
+    if (!visit) {
+      return { ok: false, error: { code: 'NOT_FOUND', messageKey: 'Visit not found' } };
+    }
+
+    if (visit.stage === VisitStage.REGISTERED || visit.stage === VisitStage.CHECKED_IN) {
+      const { transitionVisit } = await import('@/server/workflow/transition');
+      const updated = await transitionVisit(
+        visitId,
+        VisitStage.WAITING,
+        user.id,
+        user.role as any,
+        { reason: 'Check-in confirmed by reception' }
+      );
+
+      await logAudit({
+        actorId: user.id,
+        actorName: user.name || 'Reception Staff',
+        action: AuditAction.UPDATE,
+        entityType: 'Visit',
+        entityId: visitId,
+        reason: 'Patient checked in and placed in queue',
+      });
+
+      return { ok: true, data: updated };
+    }
+
+    return { ok: true, data: visit };
+  } catch (error: any) {
+    return { ok: false, error: { code: 'CHECK_IN_FAILED', messageKey: error.message } };
   }
 }

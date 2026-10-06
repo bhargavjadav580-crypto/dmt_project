@@ -26,7 +26,7 @@ export async function checkDischargeReadiness(visitId: string): Promise<{ ready:
   checks.push({
     label: 'Doctor clinical sign-off',
     passed: clinicalSignOffPassed,
-    link: `/visits/${visitId}/discharge/clinical`,
+    link: '/discharge',
   });
   if (!clinicalSignOffPassed) ready = false;
 
@@ -38,7 +38,7 @@ export async function checkDischargeReadiness(visitId: string): Promise<{ ready:
   checks.push({
     label: 'All lab orders reviewed',
     passed: allLabsReviewed,
-    link: `/visits/${visitId}/labs`,
+    link: '/lab',
   });
   if (!allLabsReviewed) ready = false;
 
@@ -50,7 +50,7 @@ export async function checkDischargeReadiness(visitId: string): Promise<{ ready:
   checks.push({
     label: 'All prescriptions dispensed or closed',
     passed: allPrescriptionsDispensed,
-    link: `/visits/${visitId}/pharmacy`,
+    link: '/pharmacy',
   });
   if (!allPrescriptionsDispensed) ready = false;
 
@@ -59,7 +59,7 @@ export async function checkDischargeReadiness(visitId: string): Promise<{ ready:
   checks.push({
     label: 'Billing clearance',
     passed: invoiceCleared,
-    link: `/visits/${visitId}/billing`,
+    link: '/billing',
   });
   if (!invoiceCleared) ready = false;
 
@@ -68,7 +68,7 @@ export async function checkDischargeReadiness(visitId: string): Promise<{ ready:
   checks.push({
     label: 'Bed clearance',
     passed: bedCleared,
-    link: `/visits/${visitId}/admission`,
+    link: '/admissions',
   });
   if (!bedCleared) ready = false;
 

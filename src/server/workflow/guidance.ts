@@ -20,7 +20,7 @@ export function getNextAction(visit: any, tasks: any, viewerRole: Role) {
       ownerRole: Role.NURSE,
       primaryAction: {
         label: 'Assess Priority',
-        href: `/visits/${visit.id}/triage`,
+        href: '/nurse',
         variant: 'primary',
       },
     };
@@ -82,7 +82,7 @@ export function getNextAction(visit: any, tasks: any, viewerRole: Role) {
         action.ownerRole = Role.PHARMACIST;
         action.primaryAction = {
           label: 'Request Substitute',
-          href: `/visits/${visit.id}/pharmacy/substitute`,
+          href: '/pharmacy',
           variant: 'warning',
         };
       } else {
@@ -121,7 +121,7 @@ export function getNextAction(visit: any, tasks: any, viewerRole: Role) {
       action.ownerRole = Role.ADMISSION_STAFF;
       action.primaryAction = {
         label: 'Complete discharge',
-        href: `/visits/${visit.id}/discharge`,
+        href: '/discharge',
         variant: 'primary',
       };
       break;
