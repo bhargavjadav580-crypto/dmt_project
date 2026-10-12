@@ -43,6 +43,7 @@ interface Props {
   departments: any[];
   doctorId: string;
   doctorName: string;
+  userRole?: string;
 }
 
 export function DoctorConsultationClient({
@@ -53,8 +54,10 @@ export function DoctorConsultationClient({
   departments,
   doctorId,
   doctorName,
+  userRole = 'DOCTOR',
 }: Props) {
   const router = useRouter();
+  const isAuthorizedClinician = ['DOCTOR', 'NURSE', 'ADMIN'].includes(userRole);
   const [selectedVisit, setSelectedVisit] = useState<any | null>(() => {
     if (activeVisitId) {
       return initialVisits.find((v) => v.id === activeVisitId) || null;
@@ -108,8 +111,8 @@ export function DoctorConsultationClient({
       setNotes(selectedVisit.consultation.notes || '');
       setDiagnosis(selectedVisit.consultation.diagnosis || '');
       setIcd10Code(selectedVisit.consultation.icd10Code || '');
-    } else {
-      // Auto start consultation
+    } else if (isAuthorizedClinician) {
+      // Auto start consultation for authorized clinical staff
       startConsultation(selectedVisit.id).then((res) => {
         if (res.ok) {
           setConsultationId(res.data.id);
@@ -120,11 +123,11 @@ export function DoctorConsultationClient({
     setAllergyAcknowledged(false);
     setSelectedLabTestIds([]);
     setRxItems([]);
-  }, [selectedVisit]);
+  }, [selectedVisit, isAuthorizedClinician]);
 
-  // Autosave draft every 10s if consultationId exists
+  // Autosave draft every 10s if consultationId exists and user is authorized clinician
   useEffect(() => {
-    if (!consultationId) return;
+    if (!consultationId || !isAuthorizedClinician) return;
 
     const timer = setInterval(async () => {
       if (notes || diagnosis) {
@@ -134,7 +137,7 @@ export function DoctorConsultationClient({
     }, 10000);
 
     return () => clearInterval(timer);
-  }, [consultationId, notes, diagnosis, icd10Code]);
+  }, [consultationId, notes, diagnosis, icd10Code, isAuthorizedClinician]);
 
   // Check if patient has allergies
   const allergies: string[] = selectedVisit?.patient?.allergies
@@ -162,6 +165,11 @@ export function DoctorConsultationClient({
 
   const handleOpenNextStepModal = () => {
     setError(null);
+    if (!isAuthorizedClinician) {
+      setError(`Insufficient permissions: You are currently signed in as ${userRole}. Only Doctors, Nurses, and Administrators can finalize consultations. Please switch to an authorized clinical account.`);
+      return;
+    }
+
     if (hasAllergies && !allergyAcknowledged) {
       setError('You must acknowledge patient allergies before saving.');
       return;
@@ -176,6 +184,11 @@ export function DoctorConsultationClient({
 
   const handleFinalizeConsultation = async () => {
     if (!consultationId) return;
+    if (!isAuthorizedClinician) {
+      setError(`Insufficient permissions: Only Doctors, Nurses, and Administrators can complete consultations. Please switch to an authorized clinical account.`);
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -198,7 +211,11 @@ export function DoctorConsultationClient({
       });
 
       if (!res.ok) {
-        setError(res.error.messageKey);
+        const errorMsg =
+          res.error.messageKey === 'Insufficient permissions'
+            ? 'Insufficient permissions: Only Doctors, Nurses, and Administrators can complete consultations. Please switch to an authorized clinical account.'
+            : res.error.messageKey;
+        setError(errorMsg);
         setSaving(false);
         return;
       }
@@ -228,6 +245,23 @@ export function DoctorConsultationClient({
           </span>
         )}
       </div>
+
+      {!isAuthorizedClinician && (
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-950">Read-Only Consultation View</p>
+              <p className="text-xs text-amber-800">
+                You are signed in as <span className="font-bold underline">{userRole}</span>. Only Doctors, Nurses, and Administrators can modify clinical notes, order investigations, or finalize consultations.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-semibold px-3 py-1.5 bg-amber-100 text-amber-900 rounded-lg shrink-0 self-start sm:self-auto border border-amber-200">
+            Switch to Doctor or Nurse account to edit
+          </span>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">

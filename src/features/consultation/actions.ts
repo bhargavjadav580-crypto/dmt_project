@@ -59,7 +59,11 @@ export async function startConsultation(visitId: string): Promise<ActionResult<a
 
     return { ok: true, data: consultation };
   } catch (error: any) {
-    return { ok: false, error: { code: 'START_CONSULTATION_FAILED', messageKey: error.message } };
+    const message =
+      error.message === 'Insufficient permissions'
+        ? 'Insufficient permissions: Only Doctors, Nurses, and Administrators can start or document consultations.'
+        : error.message;
+    return { ok: false, error: { code: 'START_CONSULTATION_FAILED', messageKey: message } };
   }
 }
 
@@ -70,7 +74,11 @@ export async function saveDraft(consultationId: string, data: any): Promise<Acti
     const draft = await consultationService.saveDraft(consultationId, parsedData);
     return { ok: true, data: draft };
   } catch (error: any) {
-    return { ok: false, error: { code: 'SAVE_DRAFT_FAILED', messageKey: error.message } };
+    const message =
+      error.message === 'Insufficient permissions'
+        ? 'Insufficient permissions: Only Doctors, Nurses, and Administrators can save consultation drafts.'
+        : error.message;
+    return { ok: false, error: { code: 'SAVE_DRAFT_FAILED', messageKey: message } };
   }
 }
 
@@ -140,7 +148,11 @@ export async function completeConsultation(consultationId: string, nextSteps: an
 
     return { ok: true, data: consultation };
   } catch (error: any) {
-    return { ok: false, error: { code: 'COMPLETE_CONSULTATION_FAILED', messageKey: error.message } };
+    const message =
+      error.message === 'Insufficient permissions'
+        ? 'Insufficient permissions: Only Doctors, Nurses, and Administrators can complete consultations.'
+        : error.message;
+    return { ok: false, error: { code: 'COMPLETE_CONSULTATION_FAILED', messageKey: message } };
   }
 }
 
@@ -160,7 +172,11 @@ export async function addAddendum(consultationId: string, notes: string): Promis
 
     return { ok: true, data: result };
   } catch (error: any) {
-    return { ok: false, error: { code: 'ADD_ADDENDUM_FAILED', messageKey: error.message } };
+    const message =
+      error.message === 'Insufficient permissions'
+        ? 'Insufficient permissions: Only Doctors, Nurses, and Administrators can add consultation addenda.'
+        : error.message;
+    return { ok: false, error: { code: 'ADD_ADDENDUM_FAILED', messageKey: message } };
   }
 }
 

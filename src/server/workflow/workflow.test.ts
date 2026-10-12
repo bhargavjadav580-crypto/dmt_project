@@ -301,6 +301,13 @@ describe('Role & Permission Map', () => {
     expect(hasPermission(Role.DOCTOR, Capabilities.COLLECT_PAYMENT)).toBe(false);
   });
 
+  it('NURSE can consult, order tests, and triage, but cannot prescribe', () => {
+    expect(hasPermission(Role.NURSE, Capabilities.CREATE_CONSULTATION)).toBe(true);
+    expect(hasPermission(Role.NURSE, Capabilities.ORDER_TESTS)).toBe(true);
+    expect(hasPermission(Role.NURSE, Capabilities.RECORD_VITALS)).toBe(true);
+    expect(hasPermission(Role.NURSE, Capabilities.PRESCRIBE)).toBe(false);
+  });
+
   it('PHARMACIST can dispense but not consult or register', () => {
     expect(hasPermission(Role.PHARMACIST, Capabilities.DISPENSE)).toBe(true);
     expect(hasPermission(Role.PHARMACIST, Capabilities.CREATE_CONSULTATION)).toBe(false);

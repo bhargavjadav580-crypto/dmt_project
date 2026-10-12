@@ -47,6 +47,7 @@ export default async function ConsultationPage({
       departments={departments}
       doctorId={session?.user?.id || ''}
       doctorName={session?.user?.name || 'Doctor'}
+      userRole={session?.user?.role || 'DOCTOR'}
     />
   );
 }

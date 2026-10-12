@@ -126,7 +126,11 @@ export async function startConsultationFromQueue(queueEntryId: string): Promise<
     });
     return { ok: true, data: entry };
   } catch (error: any) {
-    return { ok: false, error: { code: 'START_CONSULTATION_FAILED', messageKey: error.message } };
+    const message =
+      error.message === 'Insufficient permissions'
+        ? 'Insufficient permissions: Only Doctors, Nurses, and Administrators can start consultations from queue.'
+        : error.message;
+    return { ok: false, error: { code: 'START_CONSULTATION_FAILED', messageKey: message } };
   }
 }
 

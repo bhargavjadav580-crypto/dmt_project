@@ -117,7 +117,7 @@ export function AppShellClient({ user, departments, children }: AppShellClientPr
       links.push({ label: 'Nurse Station', href: '/nurse', icon: HeartPulse });
     }
 
-    if (['DOCTOR', 'ADMIN'].includes(user.role)) {
+    if (['DOCTOR', 'ADMIN', 'NURSE'].includes(user.role)) {
       links.push({ label: 'Consultations', href: '/consultation', icon: Stethoscope });
     }
 
