@@ -116,7 +116,7 @@ export async function transitionVisit(
     }
 
     const allowedRoles = allowedTargets[targetStage];
-    if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(actorRole)) {
+    if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(actorRole) && actorRole !== Role.ADMIN) {
       throw new TransitionError('UNAUTHORIZED', `Role ${actorRole} is not authorized for this transition`);
     }
 

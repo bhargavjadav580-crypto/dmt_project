@@ -53,6 +53,8 @@ const RolePermissions: Record<RoleType, CapabilityType[]> = {
     Capabilities.VIEW_VITALS,
     Capabilities.VIEW_CONSULTATION,
     Capabilities.VIEW_PRESCRIPTION,
+    Capabilities.PROCESS_LAB,
+    Capabilities.VIEW_LAB_RESULTS,
     Capabilities.MANAGE_NOTIFICATIONS,
   ],
   [Role.DOCTOR]: [
@@ -66,6 +68,7 @@ const RolePermissions: Record<RoleType, CapabilityType[]> = {
     Capabilities.CREATE_CONSULTATION,
     Capabilities.VIEW_CONSULTATION,
     Capabilities.ORDER_TESTS,
+    Capabilities.PROCESS_LAB,
     Capabilities.VIEW_LAB_RESULTS,
     Capabilities.PRESCRIBE,
     Capabilities.VIEW_PRESCRIPTION,
@@ -108,24 +111,7 @@ const RolePermissions: Record<RoleType, CapabilityType[]> = {
     Capabilities.VIEW_ANALYTICS, // Financial
     Capabilities.MANAGE_NOTIFICATIONS,
   ],
-  [Role.ADMIN]: [
-    Capabilities.REGISTER_PATIENT,
-    Capabilities.SEARCH_PATIENT,
-    Capabilities.VIEW_PATIENT_IDENTITY,
-    Capabilities.VIEW_PATIENT_CLINICAL, // Break-glass
-    Capabilities.MANAGE_QUEUE,
-    Capabilities.VIEW_VITALS,
-    Capabilities.VIEW_CONSULTATION, // Break-glass
-    Capabilities.VIEW_LAB_RESULTS,
-    Capabilities.VIEW_PRESCRIPTION,
-    Capabilities.MANAGE_BEDS,
-    Capabilities.VIEW_BILLING,
-    Capabilities.VIEW_ANALYTICS,
-    Capabilities.MANAGE_USERS,
-    Capabilities.VIEW_AUDIT_LOG,
-    Capabilities.MANAGE_SETTINGS,
-    Capabilities.MANAGE_NOTIFICATIONS,
-  ],
+  [Role.ADMIN]: Object.values(Capabilities) as CapabilityType[],
 };
 
 /**
@@ -135,6 +121,8 @@ const RolePermissions: Record<RoleType, CapabilityType[]> = {
  * @returns true if allowed, false otherwise.
  */
 export function hasPermission(role: RoleType, capability: CapabilityType): boolean {
+  if (role === Role.ADMIN) return true;
+
   const allowedCapabilities = RolePermissions[role];
   if (!allowedCapabilities) return false;
   

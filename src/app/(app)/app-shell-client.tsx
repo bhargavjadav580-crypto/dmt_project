@@ -121,7 +121,7 @@ export function AppShellClient({ user, departments, children }: AppShellClientPr
       links.push({ label: 'Consultations', href: '/consultation', icon: Stethoscope });
     }
 
-    if (['LAB_TECH', 'ADMIN'].includes(user.role)) {
+    if (['LAB_TECH', 'ADMIN', 'DOCTOR', 'NURSE'].includes(user.role)) {
       links.push({ label: 'Laboratory', href: '/lab', icon: FlaskConical });
     }
 

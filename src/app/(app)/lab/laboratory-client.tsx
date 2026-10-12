@@ -46,7 +46,11 @@ export function LaboratoryClient({ initialOrders }: { initialOrders: any[] }) {
     if (res.ok) {
       router.refresh();
     } else {
-      setError(res.error.messageKey);
+      const msg =
+        res.error.messageKey === 'Insufficient permissions'
+          ? 'Insufficient permissions: Only Lab Technicians, Nurses, Doctors, and Administrators can collect samples. Please switch to an authorized account.'
+          : res.error.messageKey;
+      setError(msg);
     }
   };
 
@@ -56,7 +60,11 @@ export function LaboratoryClient({ initialOrders }: { initialOrders: any[] }) {
     if (res.ok) {
       router.refresh();
     } else {
-      setError(res.error.messageKey);
+      const msg =
+        res.error.messageKey === 'Insufficient permissions'
+          ? 'Insufficient permissions: Only Lab Technicians, Doctors, and Administrators can process lab tests.'
+          : res.error.messageKey;
+      setError(msg);
     }
   };
 
